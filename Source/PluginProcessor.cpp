@@ -1,31 +1,17 @@
 #include "PluginProcessor.h"
 
-juce::AudioProcessorValueTreeState::ParameterLayout LifePedalAudioProcessor::createParameterLayout()
-{
-    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"octave", 1}, "Octave", 0.0f, 1.0f, 0.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"distortion", 1}, "Distortion", 0.0f, 1.0f, 0.5f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"filter", 1}, "Filter", 0.0f, 1.0f, 0.5f));
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"clipMode", 1}, "Diode Clipping", juce::StringArray{"Symmetrical Si", "Asymmetric LED", "Op-Amp Only"}, 0));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"boost", 1}, "Boost", 0.0f, 1.0f, 0.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"volume", 1}, "Volume", 0.0f, 1.0f, 0.7f));
-
-    return { params.begin(), params.end() };
-}
-
 LifePedalAudioProcessor::LifePedalAudioProcessor()
-#ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
-                       ),
-       apvts(*this, nullptr, "Parameters", createParameterLayout())
-#endif
+                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+       apvts(*this, nullptr, "Parameters", {
+           std::make_unique<juce::AudioParameterFloat>("octave", "Octave", 0.0f, 1.0f, 0.0f),
+           std::make_unique<juce::AudioParameterFloat>("distortion", "Distortion", 0.0f, 1.0f, 0.5f),
+           std::make_unique<juce::AudioParameterFloat>("filter", "Filter", 0.0f, 1.0f, 0.5f),
+           std::make_unique<juce::AudioParameterChoice>("clipMode", "Diode Clipping", juce::StringArray{"Symmetrical Si", "Asymmetric LED", "Op-Amp Only"}, 0),
+           std::make_unique<juce::AudioParameterFloat>("boost", "Boost", 0.0f, 1.0f, 0.0f),
+           std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.7f)
+       })
 {
 }
 
@@ -52,14 +38,10 @@ static float applyClipping(float input, int mode)
 {
     switch (mode)
     {
-        case 0: // Symmetrical Silicon Diodes (Classic RAT)
-            return std::tanh(input * 2.0f);
-        case 1: // Asymmetric LED
-            return (input > 0.0f) ? std::tanh(input * 1.2f) : std::tanh(input * 2.5f);
-        case 2: // Op-Amp / Hard saturation
-            return input / (1.0f + std::abs(input));
-        default:
-            return std::tanh(input);
+        case 0: return std::tanh(input * 2.0f);
+        case 1: return (input > 0.0f) ? std::tanh(input * 1.2f) : std::tanh(input * 2.5f);
+        case 2: return input / (1.0f + std::abs(input));
+        default: return std::tanh(input);
     }
 }
 
@@ -79,10 +61,9 @@ void LifePedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     float boostVal    = *apvts.getRawParameterValue("boost");
     float volumeVal   = *apvts.getRawParameterValue("volume");
 
-    // RAT Filter logic (Inverted cutoff range)
     float cutoffFreq = juce::jmap(1.0f - filterVal, 400.0f, 9000.0f);
     float dt = 1.0f / (float)getSampleRate();
-    float RC = 1.0f / (2.0f * juce::MathConstants<float>::pi * cutoffFreq);
+    float RC = 1.0f / (2.0f * 3.14159265f * cutoffFreq);
     float alpha = dt / (RC + dt);
 
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
@@ -93,23 +74,18 @@ void LifePedalAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         {
             float input = channelData[sample];
 
-            // 1. Octave Stage (Full-wave rectifier style)
             float rectified = (std::abs(input) * 2.0f) - 0.3f;
             float octaveSignal = input + (rectified * octaveVal);
 
-            // 2. RAT Distortion Stage
             float driveGain = 1.0f + (distVal * 45.0f);
             float clippedSignal = applyClipping(octaveSignal * driveGain, clipModeVal);
 
-            // 3. Filter Stage (Low pass)
             lastFilterSample[channel] += alpha * (clippedSignal - lastFilterSample[channel]);
             float filteredSignal = lastFilterSample[channel];
 
-            // 4. Boost Stage
             float boostGain = 1.0f + (boostVal * 4.0f);
             float boostedSignal = filteredSignal * boostGain;
 
-            // 5. Output Master Volume
             channelData[sample] = boostedSignal * volumeVal;
         }
     }
