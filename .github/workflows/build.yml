@@ -1,14 +1,11 @@
-name: Build VST3 Plugin (Windows)
+name: Build VST3 Plugin
 
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
 
 jobs:
   build:
-    name: Build on Windows
     runs-on: windows-latest
 
     steps:
@@ -21,7 +18,7 @@ jobs:
     - name: Build Plugin
       run: cmake --build build --config Release
 
-    - name: Upload Windows VST3 Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: LifePedalVST-Windows
