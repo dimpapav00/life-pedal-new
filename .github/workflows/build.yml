@@ -1,0 +1,39 @@
+name: Build VST3 Plugins
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build Plugin
+      run: cmake --build build --config Release
+
+    - name: Upload Windows VST3 Artifact
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v3
+      with:
+        name: LifePedalVST-Windows
+        path: build/LifePedalVST_artefacts/Release/VST3/LifePedalVST.vst3
+
+    - name: Upload macOS VST3 Artifact
+      if: runner.os == 'macOS'
+      uses: actions/upload-artifact@v3
+      with:
+        name: LifePedalVST-macOS
+        path: build/LifePedalVST_artefacts/Release/VST3/LifePedalVST.vst3
