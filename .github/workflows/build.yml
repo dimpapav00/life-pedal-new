@@ -26,14 +26,14 @@ jobs:
 
     - name: Upload Windows VST3 Artifact
       if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: LifePedalVST-Windows
         path: build/LifePedalVST_artefacts/Release/VST3/LifePedalVST.vst3
 
     - name: Upload macOS VST3 Artifact
       if: runner.os == 'macOS'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: LifePedalVST-macOS
         path: build/LifePedalVST_artefacts/Release/VST3/LifePedalVST.vst3
