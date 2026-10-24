@@ -18,11 +18,16 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Configure CMake
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
+    - name: Configure CMake (macOS)
+      if: runner.os == 'macOS'
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+
     - name: Build Plugin
-      run: cmake --build build --config Release
+      run: cmake --build build --config Release --parallel 4
 
     - name: Upload Windows VST3 Artifact
       if: runner.os == 'Windows'
@@ -35,5 +40,5 @@ jobs:
       if: runner.os == 'macOS'
       uses: actions/upload-artifact@v4
       with:
-        name: LifePedalVST-macOS
+        name: LifePedalVST-MacOS
         path: build/LifePedalVST_artefacts/Release/VST3/LifePedalVST.vst3
