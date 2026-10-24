@@ -34,10 +34,7 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
-    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-    
-    // Low-Pass FilterState
-    float lastFilterSample[2] = {0.0f, 0.0f};
+    float lastFilterSample[2];
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LifePedalAudioProcessor)
 };
